@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
 
 class FeatureSelection:
 
@@ -98,6 +101,21 @@ class DataProcess:
 
         return df
     
+    @staticmethod
+    def transform_columns(df: pd.DataFrame, transform_meta: dict, inplace: bool = False) -> pd.DataFrame:
+        """Transform columns by specified transform_meta.
+        transform_meta: dict, e.g. {'height': 'log', 'weight': 'sqrt'}
+        inplace: bool, whether to modify the dataframe in place. Defaults to False.
+        """
+
+        for col, method in transform_meta.items():
+            if inplace:
+                df[col] = df[col].transform(method)
+            else:
+                df[f'{col}_{method}'] = df[col].transform(method)
+
+        return df
+
 class MissingValue:
     @staticmethod
     def remove_missing_columns(df: pd.DataFrame, columns: list, max_missing_rate: float) -> pd.DataFrame:
@@ -221,7 +239,67 @@ class MissingValue:
     
     #TODO: fill na by KNN，ML prediction, etc.
 
-class 
-        
+class NormalityTest:
+    """Check normality of the dataset."""
 
+    @staticmethod
+    def check_normality(df: pd.DataFrame, columns: list = None) -> pd.Series:
+        """Check normality of the dataset.
+        Small size sample is recommended for Shapiro-Wilk test. 
+        Larger sample size is recommended for Anderson-Darling test.
+        """
+
+        columns = columns or df.columns
+
+        if df.shape[0] < 50:
+            p_value = df[columns].apply(lambda x: stats.shapiro(x).pvalue)
+        else:
+            p_value = df[columns].apply(lambda x: stats.anderson(x, dist='norm').statistic)
+        
+        is_normal = p_value > 0.05
+        return is_normal 
+
+class Outlier:
+    """Detect and handle outliers in the dataset."""
+
+    # -- Detect outliers -- #
+    def z_score(self, data:pd.Series, threshold: float = 3):
+        """Detect outliers by z-score."""
+        z_score = np.abs(stats.zscore(data))
+        return np.where(z_score > threshold)
+    
+    def iqr(self, data:pd.Series, threshold: float = 1.5):
+        """Detect outliers by IQR."""
+        q1 = data.quantile(0.25)
+        q3 = data.quantile(0.75)
+        iqr = q3 - q1
+        return np.where(data < (q1 - threshold * iqr) | data > (q3 + threshold * iqr))
+
+    # -- Handle outliers -- #
+    def handle_outliers(self, df: pd.DataFrame, columns: list = None, method: str = 'drop') -> pd.DataFrame:
+        """Handle outliers in the dataset.
+        method:
+            remove: remove outliers
+            cap/floor: replace outliers to the cap/floor value
+            mean/median/mode: replace outliers to the mean/median/mode value
+            custom_value: replace outliers to the custom value
+        """            
+
+
+    @staticmethod
+    def detect_outliers(df: pd.DataFrame, columns: list = None) -> pd.DataFrame:
+        """Detect outliers in the dataset.
+        Normality columns used z-score, non-normality columns used IQR."""
+        
+        columns = columns or df.columns
+
+        is_normal = NormalityTest.check_normality(df, columns)
+
+        for col in columns:
+            if is_normal[col]:
+                outliers_index = Outlier.z_score(df[col])
+            else:
+                outliers_index = Outlier.iqr(df[col])
+        
+        
         
